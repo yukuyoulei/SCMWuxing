@@ -2,6 +2,7 @@
 using GameUI.Control.Extensions;
 using static GameUI.Control.Extensions.UI;
 using GameUI.DesignSystem;
+using GameUI.Control.Primitive;
 
 namespace GameEntry.Client
 {
@@ -11,7 +12,7 @@ namespace GameEntry.Client
     public class MainPanel
     {
         private readonly string _nickname;
-        private GameUI.Control.Panel? _panel;
+        private Panel? _panel;
 
         public MainPanel(string nickname)
         {
@@ -50,7 +51,7 @@ namespace GameEntry.Client
                 );
             
             // 添加到UI根节点
-            Game.UI.Root.AddChild(_panel);
+            _panel.AddToVisualTree();
 
             Game.Logger.LogInformation($"[Client] MainPanel created with nickname: {_nickname}");
         }

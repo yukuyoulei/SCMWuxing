@@ -10,3 +10,5 @@ src/obj
 AppBundle
 ui/AppBundle
 /src/WasiCoreSDK.props
+*.log
+src/DataGenerated
