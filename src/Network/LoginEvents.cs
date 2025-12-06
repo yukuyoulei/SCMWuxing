@@ -14,13 +14,14 @@ namespace GameEntry.Network
 
     /// <summary>
     /// 验证码发送响应事件（包含时间戳）
+    /// 注意：属性名必须与服务器发送的 JSON 格式匹配（小写）
     /// </summary>
     public class EventVerificationCodeResponse : ITriggerEvent<EventVerificationCodeResponse>
     {
         public string type { get; set; } = "verification_code_response";
-        public long Timestamp { get; set; }
-        public bool Success { get; set; }
-        public string Message { get; set; } = string.Empty;
+        public long timestamp { get; set; }
+        public bool success { get; set; }
+        public string message { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -35,11 +36,12 @@ namespace GameEntry.Network
 
     /// <summary>
     /// 验证结果响应事件
+    /// 注意：属性名必须与服务器发送的 JSON 格式匹配（小写）
     /// </summary>
     public class EventVerifyCodeResponse : ITriggerEvent<EventVerifyCodeResponse>
     {
-        public bool Success { get; set; }
-        public string Message { get; set; } = string.Empty;
-        public string Nickname { get; set; } = string.Empty;
+        public bool success { get; set; }
+        public string message { get; set; } = string.Empty;
+        public string nickname { get; set; } = string.Empty;
     }
 }

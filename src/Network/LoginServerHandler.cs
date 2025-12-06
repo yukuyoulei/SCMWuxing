@@ -138,9 +138,9 @@ namespace GameEntry.Server
 
                     var errorResponse = new EventVerificationCodeResponse
                     {
-                        Timestamp = 0,
-                        Success = false,
-                        Message = "邮件发送失败，请稍后重试"
+                        timestamp = 0,
+                        success = false,
+                        message = "邮件发送失败，请稍后重试"
                     };
 
                     IEventSenderExtensions.Publish(Game.Instance, errorResponse);
@@ -152,9 +152,9 @@ namespace GameEntry.Server
                 // 使用ProtoCustomMessage发送响应回客户端
                 var responseData = new EventVerificationCodeResponse()
                 {
-                    Timestamp = timestamp,
-                    Success = true,
-                    Message = "验证码已发送至您的邮箱"
+                    timestamp = timestamp,
+                    success = true,
+                    message = "验证码已发送至您的邮箱"
                 };
 
                 var responseJson = JsonSerializer.Serialize(responseData);
@@ -176,9 +176,9 @@ namespace GameEntry.Server
 
                 var errorResponse = new EventVerificationCodeResponse
                 {
-                    Timestamp = 0,
-                    Success = false,
-                    Message = "服务器错误，请稍后重试"
+                    timestamp = 0,
+                    success = false,
+                    message = "服务器错误，请稍后重试"
                 };
 
                 IEventSenderExtensions.Publish(Game.Instance, errorResponse);

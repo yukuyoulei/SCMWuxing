@@ -521,11 +521,11 @@ namespace GameEntry.HelloWX.UI
         /// </summary>
         private Task<bool> OnVerificationCodeResponse(object sender, GameEntry.Network.EventVerificationCodeResponse e)
         {
-            Game.Logger.LogInformation($"[Client] Received verification code response: Success={e.Success}, Timestamp={e.Timestamp}, Message={e.Message}");
+            Game.Logger.LogInformation($"[Client] Received verification code response: Success={e.success}, Timestamp={e.timestamp}, Message={e.message}");
             
-            if (e.Success)
+            if (e.success)
             {
-                currentTimestamp = e.Timestamp;
+                currentTimestamp = e.timestamp;
                 Game.Logger.LogInformation($"[Client] Code sent successfully. Timestamp: {currentTimestamp}");
                 
                 // 切换到验证码步骤 (需要在主线程执行UI更新)
@@ -537,9 +537,9 @@ namespace GameEntry.HelloWX.UI
             }
             else
             {
-                Game.Logger.LogWarning($"[Client] Verification code request failed: {e.Message}");
+                Game.Logger.LogWarning($"[Client] Verification code request failed: {e.message}");
                 if (emailErrorLabel != null)
-                    emailErrorLabel.Text = e.Message;
+                    emailErrorLabel.Text = e.message;
             }
             return Task.FromResult(true);
         }
@@ -549,9 +549,9 @@ namespace GameEntry.HelloWX.UI
         /// </summary>
         private Task<bool> OnVerifyResultResponse(object sender, GameEntry.Network.EventVerifyCodeResponse e)
         {
-            if (e.Success)
+            if (e.success)
             {
-                Game.Logger.LogInformation($"[Client] Login successful! Nickname: {e.Nickname}");
+                Game.Logger.LogInformation($"[Client] Login successful! Nickname: {e.nickname}");
                 // 停止倒计时
                 StopCountdown();
                 
@@ -559,12 +559,12 @@ namespace GameEntry.HelloWX.UI
                 mainPanel?.RemoveFromParent();
                 
                 // 打开主界面并显示昵称 (MainPanel构造函数内部会自动添加到UI Root)
-                var mainPanelUI = new MainPanel(e.Nickname);
+                var mainPanelUI = new MainPanel(e.nickname);
             }
             else
             {
                 if (codeErrorLabel != null)
-                    codeErrorLabel.Text = e.Message;
+                    codeErrorLabel.Text = e.message;
             }
             return Task.FromResult(true);
         }
