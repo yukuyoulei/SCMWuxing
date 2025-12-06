@@ -43,5 +43,9 @@ namespace GameEntry.Network
         public bool success { get; set; }
         public string message { get; set; } = string.Empty;
         public string nickname { get; set; } = string.Empty;
+        public int level { get; set; } = 1;
+        public long experience { get; set; } = 0;
+        public long gold { get; set; } = 0;
+        public System.Collections.Generic.Dictionary<string, long> elements { get; set; } = new();
     }
 }

@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using static GameUI.Control.Extensions.UI;
 using GameEntry.Network;
+using GameEntry.Data;
 using System.Text;
 using GameEntry.Client;
 
@@ -551,15 +552,25 @@ namespace GameEntry.HelloWX.UI
         {
             if (e.success)
             {
-                Game.Logger.LogInformation($"[Client] Login successful! Nickname: {e.nickname}");
+                Game.Logger.LogInformation($"[Client] Login successful! Nickname: {e.nickname}, Level: {e.level}, Gold: {e.gold}");
                 // 停止倒计时
                 StopCountdown();
                 
                 // 关闭当前登录界面
                 mainPanel?.RemoveFromParent();
                 
-                // 打开主界面并显示昵称 (MainPanel构造函数内部会自动添加到UI Root)
-                var mainPanelUI = new MainPanel(e.nickname);
+                // 创建PlayerData对象
+                var playerData = new GameEntry.Data.PlayerData
+                {
+                    Nickname = e.nickname,
+                    Level = e.level,
+                    Experience = e.experience,
+                    Gold = e.gold,
+                    Elements = e.elements ?? new System.Collections.Generic.Dictionary<string, long>()
+                };
+                
+                // 打开主界面并显示玩家数据 (MainPanel构造函数内部会自动添加到UI Root)
+                var mainPanelUI = new MainPanel(playerData);
             }
             else
             {

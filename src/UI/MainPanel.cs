@@ -4,6 +4,7 @@ using static GameUI.Control.Extensions.UI;
 using GameUI.DesignSystem;
 using GameUI.Control.Primitive;
 using GameUI.Struct;
+using GameEntry.Data;
 using System;
 using System.Drawing;
 
@@ -15,18 +16,16 @@ namespace GameEntry.Client
     /// </summary>
     public class MainPanel
     {
-        private readonly string _nickname;
-        private readonly int _level;
+        private readonly GameEntry.Data.PlayerData _playerData;
         private Panel? _panel;
 
         // UI控件引用
         private Label? _levelLabel;
         private Label? _currencyLabel;
 
-        public MainPanel(string nickname, int level = 1)
+        public MainPanel(GameEntry.Data.PlayerData playerData)
         {
-            _nickname = nickname;
-            _level = level;
+            _playerData = playerData;
             
             // 构建UI
             BuildUI();
@@ -53,7 +52,7 @@ namespace GameEntry.Client
             // 添加到UI根节点
             _panel.AddToVisualTree();
 
-            Game.Logger.LogInformation($"[Client] MainPanel created with nickname: {_nickname}, level: {_level}");
+            Game.Logger.LogInformation($"[Client] MainPanel created with nickname: {_playerData.Nickname}, level: {_playerData.Level}, gold: {_playerData.Gold}");
         }
 
         /// <summary>
@@ -69,7 +68,7 @@ namespace GameEntry.Client
                     .Background(DesignColors.Primary),
                 
                 // 昵称
-                Label(_nickname)
+                Label(_playerData.Nickname)
                     .FontSize(18)
                     .Bold()
                     .TextColor(DesignColors.OnSurface),
@@ -78,7 +77,7 @@ namespace GameEntry.Client
                 Spacer(),
                 
                 // 等级显示
-                _levelLabel = Label($"Lv.{_level}")
+                _levelLabel = Label($"Lv.{_playerData.Level}")
                     .FontSize(16)
                     .Bold()
                     .TextColor(DesignColors.Primary),
@@ -87,7 +86,7 @@ namespace GameEntry.Client
                 HStack(4,
                     Label("💰")
                         .FontSize(16),
-                    _currencyLabel = Label("0")
+                    _currencyLabel = Label(FormatCurrency(_playerData.Gold))
                         .FontSize(16)
                         .TextColor(DesignColors.OnSurface)
                 )

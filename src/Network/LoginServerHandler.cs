@@ -1,5 +1,6 @@
 #if SERVER
 using GameEntry.Network;
+using GameEntry.Data;
 using System.Text;
 
 namespace GameEntry.Server
@@ -189,22 +190,22 @@ namespace GameEntry.Server
         /// <summary>
         /// 处理验证验证码事件
         /// </summary>
-        private static Task<bool> OnVerifyCode(Player player, string email, string inputCode, long timestamp)
+        private static async Task<bool> OnVerifyCode(Player player, string email, string inputCode, long timestamp)
         {
             try
             {
                 if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(inputCode))
                 {
                     Game.Logger.LogWarning("[Server] Empty email or code provided in verification request");
-                    return Task.FromResult(false);
+                    return false;
                 }
 
                 // 验证时间戳有效期 (例如 5分钟内有效)
                 long currentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 if (currentTimestamp - timestamp > 300) // 300秒 = 5分钟
                 {
-                    SendVerifyResponse(player, false, "验证码已过期");
-                    return Task.FromResult(true);
+                    SendVerifyResponse(player, false, "验证码已过期", null);
+                    return true;
                 }
 
                 // 重新生成验证码进行比对
@@ -213,26 +214,50 @@ namespace GameEntry.Server
                 if (inputCode == expectedCode)
                 {
                     Game.Logger.LogInformation($"[Server] Verification successful for {email}");
-                    // 模拟第一次登录，随机生成昵称
-                    string nickname = "Player" + new Random().Next(1000, 9999);
-                    SendVerifyResponse(player, true, "登录成功", nickname);
+                    
+                    // 尝试从CloudData加载玩家数据
+                    var playerData = await PlayerDataManager.LoadPlayerDataAsync(player);
+                    
+                    if (playerData == null)
+                    {
+                        // 新玩家：创建数据并生成随机昵称
+                        string nickname = "Player" + new Random().Next(1000, 9999);
+                        playerData = await PlayerDataManager.InitializeNewPlayerAsync(player, nickname);
+                        
+                        if (playerData == null)
+                        {
+                            // 如果CloudData不可用，使用临时数据
+                            Game.Logger.LogWarning("[Server] CloudData unavailable, using temporary data");
+                            playerData = GameEntry.Data.PlayerData.CreateNew(nickname);
+                        }
+                        else
+                        {
+                            Game.Logger.LogInformation($"[Server] New player created: {nickname}");
+                        }
+                    }
+                    else
+                    {
+                        Game.Logger.LogInformation($"[Server] Existing player loaded: {playerData.Nickname}");
+                    }
+                    
+                    SendVerifyResponse(player, true, "登录成功", playerData);
                 }
                 else
                 {
                     Game.Logger.LogInformation($"[Server] Verification failed for {email}. Expected: {expectedCode}, Got: {inputCode}");
-                    SendVerifyResponse(player, false, "验证码错误");
+                    SendVerifyResponse(player, false, "验证码错误", null);
                 }
 
-                return Task.FromResult(true);
+                return true;
             }
             catch (Exception ex)
             {
                 Game.Logger.LogError($"[Server] Error verifying code: {ex.Message}");
-                return Task.FromResult(false);
+                return false;
             }
         }
 
-        private static void SendVerifyResponse(Player player, bool success, string message, string nickname = "")
+        private static void SendVerifyResponse(Player player, bool success, string message, GameEntry.Data.PlayerData? playerData)
         {
             // 使用ProtoCustomMessage发送验证结果响应
             var responseData = new
@@ -240,7 +265,11 @@ namespace GameEntry.Server
                 type = "verify_code_response",
                 success = success,
                 message = message,
-                nickname = nickname
+                nickname = playerData?.Nickname ?? "",
+                level = playerData?.Level ?? 1,
+                experience = playerData?.Experience ?? 0,
+                gold = playerData?.Gold ?? 0,
+                elements = playerData?.Elements ?? new System.Collections.Generic.Dictionary<string, long>()
             };
 
             var responseJson = JsonSerializer.Serialize(responseData);
