@@ -1,0 +1,10 @@
+- name: AI开发文档
+  href: README.md
+- name: 开发指南
+  items:
+  - name: AI开发指南
+    href: development/AI_DEVELOPMENT_GUIDE.md
+  - name: Canvas 2D游戏开发指南
+    href: development/AI_2D_GAME_DEVELOPMENT_GUIDE.md
+  - name: AI友好的UI API
+    href: development/AI_FRIENDLY_UI_API.md 

@@ -1,0 +1,22 @@
+{
+  "Date": "2025-12-01 20:55:20.157",
+  "LastModifiedTimestamp": 1764593720157,
+  "Libs": {
+    "global_default": {
+      "LastModifiedTimestamp": 1764139381004,
+      "Path": "E:/\u661F\u706B\u7F16\u8F91\u5668/Update/editor-alpha.spark.xd.com/Res/_m/maps/global_default/194/global_default"
+    },
+    "script": {
+      "LastModifiedTimestamp": 1764126803720,
+      "Path": "E:/Personal/SCMWuxing/GameWuxing"
+    },
+    "lib_game_options": {
+      "LastModifiedTimestamp": 0,
+      "Path": "E:/\u661F\u706B\u7F16\u8F91\u5668/Update/editor-alpha.spark.xd.com/Res/_m/maps/script_libs/lib_game_options/203/lib_game_options"
+    },
+    "gamesystemui": {
+      "LastModifiedTimestamp": 1762936642895,
+      "Path": "E:/\u661F\u706B\u7F16\u8F91\u5668/Update/editor-alpha.spark.xd.com/Res/_m/maps/GameSystemUI/4/GameSystemUI"
+    }
+  }
+}
