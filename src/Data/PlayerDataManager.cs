@@ -47,23 +47,21 @@ namespace GameEntry.Data
                     return null;
                 }
                 
-                // 检查会话缓存
+                // 检查会话缓存 (优先使用UserId，其次使用PlayerId)
                 if (_sessionCache.TryGetValue(userId.Value, out var cachedData))
                 {
                     Game.Logger.LogInformation($"[PlayerDataManager] Returning cached data for {cachedData.Nickname}");
                     return cachedData;
                 }
+                
+                // 也检查PlayerId作为fallback key
+                if (_sessionCache.TryGetValue(player.Id, out cachedData))
+                {
+                    Game.Logger.LogInformation($"[PlayerDataManager] Returning cached data (by PlayerId) for {cachedData.Nickname}");
+                    return cachedData;
+                }
 
-                Game.Logger.LogInformation($"[PlayerDataManager] UserId: {userId} - checking if player exists in CloudData");
-                
-                // 尝试使用ForPlayer读取数据 - 如果失败说明是新玩家
-                // 这里我们采用一个技巧：尝试增加0金币来触发数据访问
-                // 如果是已有玩家，这不会有任何效果
-                // 真正的数据加载依赖于初始化时保存数据到缓存
-                
-                // 目前先返回null，让调用方创建新玩家
-                // 后续可以通过定期保存和加载来完善
-                Game.Logger.LogInformation($"[PlayerDataManager] No cached data for userId {userId} - treating as new player");
+                Game.Logger.LogInformation($"[PlayerDataManager] UserId: {userId} - no cached data, treating as new player");
                 return null;
             }
             catch (Exception ex)
@@ -228,6 +226,25 @@ namespace GameEntry.Data
             catch
             {
                 return null;
+            }
+        }
+        
+        /// <summary>
+        /// 手动缓存玩家数据（用于CloudData不可用时的回退）
+        /// </summary>
+        public static void CachePlayerData(Player player, PlayerData data)
+        {
+            long? userId = GetUserIdFromPlayer(player);
+            if (userId != null)
+            {
+                _sessionCache[userId.Value] = data;
+                Game.Logger.LogInformation($"[PlayerDataManager] Manually cached data for {data.Nickname}");
+            }
+            else
+            {
+                // 如果无法获取UserId，使用PlayerId作为临时key
+                _sessionCache[player.Id] = data;
+                Game.Logger.LogWarning($"[PlayerDataManager] Cached data using PlayerId {player.Id} (fallback)");
             }
         }
         

@@ -38,13 +38,13 @@ namespace GameEntry.Client
                 .Background(DesignColors.Background)
                 .Add(
                     VStack(0,
-                        // 顶部玩家信息栏
+                        // 顶部玩家信息栏 (固定高度)
                         CreateHeaderSection(),
                         
-                        // 主游戏内容区域
+                        // 主游戏内容区域 (填充剩余空间)
                         CreateMainContentArea(),
                         
-                        // 底部导航栏
+                        // 底部导航栏 (固定高度)
                         CreateBottomNavBar()
                     ).Stretch()
                 );
@@ -105,33 +105,49 @@ namespace GameEntry.Client
         /// </summary>
         private Panel CreateMainContentArea()
         {
-            var content = VStack(20,
-                // 欢迎信息 (临时)
+            var content = VStack(24,
+                // 留出顶部空间
+                Spacer(),
+                
+                // 欢迎信息
                 Label("五行挂机")
-                    .FontSize(32)
+                    .FontSize(36)
                     .Bold()
                     .TextColor(DesignColors.Primary)
                     .Center(),
                 
-                Label("游戏内容区域")
-                    .FontSize(16)
+                // 副标题
+                Label($"欢迎, {_playerData.Nickname}")
+                    .FontSize(18)
                     .TextColor(DesignColors.Secondary)
                     .Center(),
                 
-                // 五行元素展示区 (占位)
-                HStack(16,
+                // 间距
+                Panel().Height(40),
+                
+                // 五行元素展示区
+                Label("五行修炼")
+                    .FontSize(16)
+                    .TextColor(DesignColors.OnSurface)
+                    .Center(),
+                
+                HStack(20,
                     CreateElementIcon("金", Color.FromArgb(255, 255, 215, 0)),   // 金 - 金色
                     CreateElementIcon("木", Color.FromArgb(255, 34, 139, 34)),   // 木 - 绿色
                     CreateElementIcon("水", Color.FromArgb(255, 30, 144, 255)),  // 水 - 蓝色
                     CreateElementIcon("火", Color.FromArgb(255, 255, 69, 0)),    // 火 - 红色
                     CreateElementIcon("土", Color.FromArgb(255, 139, 90, 43))    // 土 - 棕色
-                ).Center()
-            ).Center();
+                ).Center(),
+                
+                // 留出底部空间
+                Spacer()
+            ).Stretch();
 
             return Panel()
                 .Add(content)
-                .Stretch()
+                .HeightGrow(1)  // 填充剩余垂直空间
                 .StretchHorizontal()
+                .Padding(16)
                 .Background(DesignColors.Background);
         }
 
@@ -159,17 +175,32 @@ namespace GameEntry.Client
         private Panel CreateBottomNavBar()
         {
             var navContent = HStack(0,
-                CreateNavButton("🎒", "背包", () => OnBackpackClicked()),
+                CreateNavButton("⬆️", "升级", () => OnBackpackClicked()),
+                CreateNavDivider(),
                 CreateNavButton("⚔️", "技能", () => OnSkillsClicked()),
+                CreateNavDivider(),
                 CreateNavButton("🛒", "商店", () => OnShopClicked()),
+                CreateNavDivider(),
                 CreateNavButton("⚙️", "设置", () => OnSettingsClicked())
-            );
+            ).StretchHorizontal();
 
             return Panel()
                 .Add(navContent)
                 .Height(80)
                 .StretchHorizontal()
+                .Padding(8, 0)
                 .Background(DesignColors.Surface);
+        }
+
+        /// <summary>
+        /// 创建导航按钮分隔线
+        /// </summary>
+        private Panel CreateNavDivider()
+        {
+            return Panel()
+                .Width(1)
+                .Height(40)
+                .Background(Color.FromArgb(50, 128, 128, 128));
         }
 
         /// <summary>
@@ -177,12 +208,13 @@ namespace GameEntry.Client
         /// </summary>
         private Panel CreateNavButton(string icon, string label, Action onClick)
         {
-            var buttonContent = VStack(4,
+            var buttonContent = VStack(6,
                 Label(icon)
-                    .FontSize(24)
+                    .FontSize(28)
                     .Center(),
                 Label(label)
-                    .FontSize(12)
+                    .FontSize(14)
+                    .Bold()
                     .TextColor(DesignColors.OnSurface)
                     .Center()
             ).Center();
@@ -200,8 +232,9 @@ namespace GameEntry.Client
 
         private void OnBackpackClicked()
         {
-            Game.Logger.LogInformation("[Client] Backpack button clicked");
-            // TODO: 打开背包界面
+            Game.Logger.LogInformation("[Client] Level Up button clicked - sending GM command");
+            // 发送升级命令到服务器
+            SendGMCommand("level_up");
         }
 
         private void OnSkillsClicked()
@@ -256,6 +289,67 @@ namespace GameEntry.Client
             if (amount >= 10000)
                 return $"{amount / 10000}万";
             return amount.ToString();
+        }
+
+        // ==================== 网络通信 ====================
+
+        /// <summary>
+        /// 发送GM命令到服务器
+        /// </summary>
+        private void SendGMCommand(string command, System.Collections.Generic.Dictionary<string, object>? args = null)
+        {
+            try
+            {
+                var message = new
+                {
+                    type = "gm_command",
+                    command = command,
+                    args = args ?? new System.Collections.Generic.Dictionary<string, object>()
+                };
+
+                var json = System.Text.Json.JsonSerializer.Serialize(message);
+                var messageBytes = System.Text.Encoding.UTF8.GetBytes(json);
+                
+                var protoMessage = new ProtoCustomMessage
+                {
+                    Message = messageBytes
+                };
+                
+                protoMessage.SendToServer();
+                Game.Logger.LogInformation($"[Client] Sent GM command: {command}");
+            }
+            catch (Exception ex)
+            {
+                Game.Logger.LogError(ex, "[Client] Failed to send GM command");
+            }
+        }
+
+        /// <summary>
+        /// 处理GM命令响应
+        /// </summary>
+        public void HandleGMResponse(bool success, string command, string message, System.Collections.Generic.Dictionary<string, object>? data)
+        {
+            Game.Logger.LogInformation($"[Client] GM Response: {command} - {message} (success={success})");
+            
+            if (success && command == "level_up" && data != null)
+            {
+                // 更新UI显示
+                if (data.TryGetValue("level", out var levelObj))
+                {
+                    if (levelObj is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        UpdateLevel(je.GetInt32());
+                    }
+                }
+                
+                if (data.TryGetValue("gold", out var goldObj))
+                {
+                    if (goldObj is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        UpdateCurrency(je.GetInt64());
+                    }
+                }
+            }
         }
     }
 }

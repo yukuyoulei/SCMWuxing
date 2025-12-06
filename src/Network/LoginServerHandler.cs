@@ -98,6 +98,31 @@ namespace GameEntry.Server
                         }
                         return await OnVerifyCode(player, email, code, timestamp);
                     }
+                    else if (messageType == "gm_command")
+                    {
+                        var command = messageData.ContainsKey("command") ? messageData["command"]?.ToString() ?? "" : "";
+                        var args = new Dictionary<string, object>();
+                        
+                        if (messageData.ContainsKey("args") && messageData["args"] is JsonElement argsElement)
+                        {
+                            if (argsElement.ValueKind == JsonValueKind.Object)
+                            {
+                                foreach (var prop in argsElement.EnumerateObject())
+                                {
+                                    args[prop.Name] = prop.Value.ValueKind switch
+                                    {
+                                        JsonValueKind.Number => prop.Value.TryGetInt64(out var l) ? l : prop.Value.GetDouble(),
+                                        JsonValueKind.String => prop.Value.GetString() ?? "",
+                                        JsonValueKind.True => true,
+                                        JsonValueKind.False => false,
+                                        _ => prop.Value.ToString()
+                                    };
+                                }
+                            }
+                        }
+                        
+                        return await GMCommands.HandleCommand(player, command, args);
+                    }
                 }
                 
                 return true;
@@ -226,9 +251,10 @@ namespace GameEntry.Server
                         
                         if (playerData == null)
                         {
-                            // 如果CloudData不可用，使用临时数据
+                            // 如果CloudData不可用，使用临时数据并缓存
                             Game.Logger.LogWarning("[Server] CloudData unavailable, using temporary data");
                             playerData = GameEntry.Data.PlayerData.CreateNew(nickname);
+                            PlayerDataManager.CachePlayerData(player, playerData);
                         }
                         else
                         {
