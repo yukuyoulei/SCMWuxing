@@ -129,122 +129,280 @@ namespace GameEntry.Client
 
         private void BuildUI()
         {
+            // 主布局：使用绝对定位的浮动元素 + 中心内容
             _panel = Panel()
                 .FillParent()
-                .Background(DesignColors.Background)
+                .Background(Color.FromArgb(255, 45, 55, 72))  // 深蓝紫色背景
                 .Add(
-                    VStack(0,
-                        // 顶部玩家信息栏 (固定高度)
-                        CreateHeaderSection(),
-                        
-                        // 主游戏内容区域 (填充剩余空间)
-                        CreateMainContentArea(),
-                        
-                        // 底部导航栏 (固定高度)
-                        CreateBottomNavBar()
-                    ).Stretch()
+                    // 中心游戏内容区域
+                    CreateCenterGameArea(),
+                    
+                    // 顶部栏（头像+货币）- 浮动在顶部
+                    CreateTopBar(),
+                    
+                    // 左侧任务/事件面板 - 浮动在左边
+                    CreateLeftEventPanel(),
+                    
+                    // 右侧快捷按钮 - 浮动在右边
+                    CreateRightActionButtons(),
+                    
+                    // 底部任务进度栏 - 浮动在底部
+                    CreateBottomTaskBar()
                 );
             
-            // 添加到UI根节点
             _panel.AddToVisualTree();
-
             Game.Logger.LogInformation($"[Client] MainPanel created with nickname: {_playerData.Nickname}, level: {_playerData.Level}, gold: {_playerData.Gold}");
         }
 
         /// <summary>
-        /// 创建顶部玩家信息栏
+        /// 创建顶部栏 - 左侧头像等级，右侧货币
         /// </summary>
-        private Panel CreateHeaderSection()
+        private Panel CreateTopBar()
         {
-            var headerContent = HStack(12,
-                // 头像 (圆形占位)
-                Panel()
-                    .Size(48, 48)
-                    .CornerRadius(24)
-                    .Background(DesignColors.Primary),
-                
-                // 昵称
-                Label(_playerData.Nickname)
-                    .FontSize(18)
-                    .Bold()
-                    .TextColor(DesignColors.OnSurface),
-                
-                // 弹性间距
-                Spacer(),
-                
-                // 等级显示
-                _levelLabel = Label($"Lv.{_playerData.Level}")
-                    .FontSize(16)
-                    .Bold()
-                    .TextColor(DesignColors.Primary),
-                
-                // 货币显示区域
-                HStack(4,
-                    Label("💰")
-                        .FontSize(16),
-                    _currencyLabel = Label(FormatCurrency(_playerData.Gold))
-                        .FontSize(16)
-                        .TextColor(DesignColors.OnSurface)
-                )
-            );
-
             return Panel()
-                .Add(headerContent)
-                .Height(64)
                 .StretchHorizontal()
-                .Padding(16, 8)
-                .Background(DesignColors.Surface);
+                .Height(60)
+                .AlignTop()
+                .Padding(8, 8)
+                .Add(
+                    HStack(8,
+                        // 左侧：头像 + 等级
+                        CreateAvatarWithLevel(),
+                        
+                        Spacer(),
+                        
+                        // 右侧：货币显示
+                        CreateCurrencyBar()
+                    ).StretchHorizontal()
+                );
         }
 
         /// <summary>
-        /// 创建主游戏内容区域
+        /// 创建头像带等级徽章
         /// </summary>
-        private Panel CreateMainContentArea()
+        private Panel CreateAvatarWithLevel()
         {
-            var content = VStack(24,
-                // 留出顶部空间
-                Spacer(),
-                
-                // 欢迎信息
-                Label("五行挂机")
-                    .FontSize(36)
-                    .Bold()
-                    .TextColor(DesignColors.Primary)
-                    .Center(),
-                
-                // 副标题
-                Label($"欢迎, {_playerData.Nickname}")
-                    .FontSize(18)
-                    .TextColor(DesignColors.Secondary)
-                    .Center(),
-                
-                // 间距
-                Panel().Height(40),
-                
-                // 五行元素展示区
-                Label("五行修炼")
-                    .FontSize(16)
-                    .TextColor(DesignColors.OnSurface)
-                    .Center(),
-                
-                HStack(20,
-                    CreateElementIcon("金", Color.FromArgb(255, 255, 215, 0)),   // 金 - 金色
-                    CreateElementIcon("木", Color.FromArgb(255, 34, 139, 34)),   // 木 - 绿色
-                    CreateElementIcon("水", Color.FromArgb(255, 30, 144, 255)),  // 水 - 蓝色
-                    CreateElementIcon("火", Color.FromArgb(255, 255, 69, 0)),    // 火 - 红色
-                    CreateElementIcon("土", Color.FromArgb(255, 139, 90, 43))    // 土 - 棕色
-                ).Center(),
-                
-                // 留出底部空间
-                Spacer()
-            ).Stretch();
-
             return Panel()
-                .Add(content)
-                .HeightGrow(1)  // 填充剩余垂直空间
+                .Size(56, 56)
+                .Add(
+                    // 头像框背景
+                    Panel()
+                        .Size(50, 50)
+                        .CornerRadius(8)
+                        .Background(Color.FromArgb(200, 139, 90, 43))  // 棕色边框
+                        .Add(
+                            Panel()
+                                .Size(44, 44)
+                                .CornerRadius(6)
+                                .Background(Color.FromArgb(255, 100, 120, 140))  // 头像占位
+                                .Center()
+                        )
+                        .Center(),
+                    
+                    // 等级徽章 - 左下角
+                    Panel()
+                        .Size(24, 20)
+                        .CornerRadius(4)
+                        .Background(Color.FromArgb(255, 255, 193, 7))  // 金色
+                        .AlignBottom()
+                        .AlignLeft()
+                        .Add(
+                            _levelLabel = Label($"{_playerData.Level}")
+                                .FontSize(12)
+                                .Bold()
+                                .TextColor(Color.FromArgb(255, 50, 50, 50))
+                                .Center()
+                        )
+                );
+        }
+
+        /// <summary>
+        /// 创建货币栏 - 横向排列的货币显示
+        /// </summary>
+        private Panel CreateCurrencyBar()
+        {
+            return HStack(12,
+                // 金币
+                CreateCurrencyItem("💰", FormatCurrency(_playerData.Gold), Color.FromArgb(200, 0, 0, 0)),
+                // 五行元素1 (金)
+                CreateCurrencyItem("🔶", "5.67k", Color.FromArgb(200, 0, 0, 0)),
+                // 五行元素2 (木)
+                CreateCurrencyItem("🟢", "5.67k", Color.FromArgb(200, 0, 0, 0))
+            );
+        }
+
+        /// <summary>
+        /// 创建单个货币显示项
+        /// </summary>
+        private Panel CreateCurrencyItem(string icon, string value, Color bgColor)
+        {
+            return Panel()
+                .Height(28)
+                .Padding(8, 4)
+                .CornerRadius(14)
+                .Background(bgColor)
+                .Add(
+                    HStack(4,
+                        Label(icon).FontSize(14),
+                        _currencyLabel = Label(value)
+                            .FontSize(14)
+                            .Bold()
+                            .TextColor(Color.White)
+                    ).Center()
+                );
+        }
+
+        /// <summary>
+        /// 创建左侧事件/任务面板
+        /// </summary>
+        private Panel CreateLeftEventPanel()
+        {
+            return Panel()
+                .Width(140)
+                .Height(70)
+                .AlignTop()
+                .AlignLeft()
+                .Margin(8, 75, 0, 0)  // 在顶部栏下方
+                .CornerRadius(8)
+                .Background(Color.FromArgb(180, 0, 0, 0))
+                .Add(
+                    HStack(8,
+                        // 事件图标
+                        Panel()
+                            .Size(45, 45)
+                            .CornerRadius(6)
+                            .Background(Color.FromArgb(255, 100, 149, 237))  // 占位图标
+                            .Center(),
+                        
+                        // 事件信息
+                        VStack(2,
+                            Label("五行试炼")
+                                .FontSize(12)
+                                .Bold()
+                                .TextColor(Color.White),
+                            Label("01:05:00")
+                                .FontSize(14)
+                                .Bold()
+                                .TextColor(Color.FromArgb(255, 255, 215, 0))
+                        )
+                    ).Padding(8).Center()
+                );
+        }
+
+        /// <summary>
+        /// 创建右侧快捷操作按钮
+        /// </summary>
+        private Panel CreateRightActionButtons()
+        {
+            return Panel()
+                .Width(60)
+                .AlignTop()
+                .AlignRight()
+                .Margin(0, 75, 8, 0)  // 在顶部栏下方
+                .Add(
+                    VStack(12,
+                        CreateRightButton("⬆️", "升级", () => OnBackpackClicked()),
+                        CreateRightButton("📦", "背包", () => OnSkillsClicked()),
+                        CreateRightButton("🛒", "商店", () => OnShopClicked()),
+                        CreateRightButton("⚙️", "设置", () => OnSettingsClicked())
+                    )
+                );
+        }
+
+        /// <summary>
+        /// 创建右侧单个按钮
+        /// </summary>
+        private Panel CreateRightButton(string icon, string label, Action onClick)
+        {
+            return Panel()
+                .Size(50, 55)
+                .CornerRadius(8)
+                .Background(Color.FromArgb(180, 0, 0, 0))
+                .Click((s, e) => onClick())
+                .Add(
+                    VStack(2,
+                        Label(icon).FontSize(20).Center(),
+                        Label(label).FontSize(10).TextColor(Color.White).Center()
+                    ).Center()
+                );
+        }
+
+        /// <summary>
+        /// 创建中心游戏区域
+        /// </summary>
+        private Panel CreateCenterGameArea()
+        {
+            return Panel()
+                .Stretch()
+                .Add(
+                    VStack(24,
+                        Spacer(),
+                        
+                        // 游戏标题
+                        Label("五行挂机")
+                            .FontSize(32)
+                            .Bold()
+                            .TextColor(Color.White)
+                            .Center(),
+                        
+                        Label($"欢迎, {_playerData.Nickname}")
+                            .FontSize(16)
+                            .TextColor(Color.FromArgb(200, 255, 255, 255))
+                            .Center(),
+                        
+                        Panel().Height(30),
+                        
+                        // 五行元素展示
+                        HStack(16,
+                            CreateElementIcon("金", Color.FromArgb(255, 255, 215, 0)),
+                            CreateElementIcon("木", Color.FromArgb(255, 34, 139, 34)),
+                            CreateElementIcon("水", Color.FromArgb(255, 30, 144, 255)),
+                            CreateElementIcon("火", Color.FromArgb(255, 255, 69, 0)),
+                            CreateElementIcon("土", Color.FromArgb(255, 139, 90, 43))
+                        ).Center(),
+                        
+                        Spacer(),
+                        Spacer()
+                    ).Stretch()
+                );
+        }
+
+        /// <summary>
+        /// 创建底部任务进度栏
+        /// </summary>
+        private Panel CreateBottomTaskBar()
+        {
+            return Panel()
                 .StretchHorizontal()
-                .Padding(16)
-                .Background(DesignColors.Background);
+                .Height(50)
+                .AlignBottom()
+                .Padding(12, 8)
+                .Background(Color.FromArgb(200, 0, 0, 0))
+                .Add(
+                    HStack(12,
+                        // 任务图标
+                        Panel()
+                            .Size(32, 32)
+                            .CornerRadius(6)
+                            .Background(Color.FromArgb(255, 255, 152, 0)),
+                        
+                        // 任务文本
+                        Label("当前任务: 修炼五行元素")
+                            .FontSize(14)
+                            .TextColor(Color.White),
+                        
+                        Spacer(),
+                        
+                        // 快捷入口按钮
+                        Panel()
+                            .Size(40, 32)
+                            .CornerRadius(6)
+                            .Background(Color.FromArgb(255, 76, 175, 80))
+                            .Add(
+                                Label("📋").FontSize(16).Center()
+                            )
+                    ).StretchHorizontal()
+                );
         }
 
         /// <summary>
@@ -263,65 +421,6 @@ namespace GameEntry.Client
                         .TextColor(Color.White)
                         .Center()
                 );
-        }
-
-        /// <summary>
-        /// 创建底部导航栏
-        /// </summary>
-        private Panel CreateBottomNavBar()
-        {
-            var navContent = HStack(0,
-                CreateNavButton("⬆️", "升级", () => OnBackpackClicked()),
-                CreateNavDivider(),
-                CreateNavButton("⚔️", "技能", () => OnSkillsClicked()),
-                CreateNavDivider(),
-                CreateNavButton("🛒", "商店", () => OnShopClicked()),
-                CreateNavDivider(),
-                CreateNavButton("⚙️", "设置", () => OnSettingsClicked())
-            ).StretchHorizontal();
-
-            return Panel()
-                .Add(navContent)
-                .Height(80)
-                .StretchHorizontal()
-                .Padding(8, 0)
-                .Background(DesignColors.Surface);
-        }
-
-        /// <summary>
-        /// 创建导航按钮分隔线
-        /// </summary>
-        private Panel CreateNavDivider()
-        {
-            return Panel()
-                .Width(1)
-                .Height(40)
-                .Background(Color.FromArgb(50, 128, 128, 128));
-        }
-
-        /// <summary>
-        /// 创建导航按钮
-        /// </summary>
-        private Panel CreateNavButton(string icon, string label, Action onClick)
-        {
-            var buttonContent = VStack(6,
-                Label(icon)
-                    .FontSize(28)
-                    .Center(),
-                Label(label)
-                    .FontSize(14)
-                    .Bold()
-                    .TextColor(DesignColors.OnSurface)
-                    .Center()
-            ).Center();
-
-            var button = Panel()
-                .Add(buttonContent)
-                .WidthGrow(1)
-                .Height(80)
-                .Click((sender, e) => onClick());
-
-            return button;
         }
 
         // ==================== 按钮事件处理 ====================
@@ -360,7 +459,7 @@ namespace GameEntry.Client
         {
             if (_levelLabel != null)
             {
-                _levelLabel.Text = $"Lv.{level}";
+                _levelLabel.Text = $"{level}";
             }
         }
 
