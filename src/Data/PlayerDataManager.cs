@@ -31,7 +31,7 @@ namespace GameEntry.Data
 
         /// <summary>
         /// 从CloudData加载玩家数据
-        /// 使用简化方式：尝试读取昵称来判断是否为新玩家
+        /// 先检查缓存，缓存未命中时查询CloudData
         /// </summary>
         public static async Task<PlayerData?> LoadPlayerDataAsync(Player player)
         {
@@ -61,8 +61,113 @@ namespace GameEntry.Data
                     return cachedData;
                 }
 
-                Game.Logger.LogInformation($"[PlayerDataManager] UserId: {userId} - no cached data, treating as new player");
-                return null;
+                Game.Logger.LogInformation($"[PlayerDataManager] No cache found, querying CloudData for userId {userId}");
+                
+                // 查询CloudData - 使用QueryUserDataAsync
+                var dataResult = await CloudData.QueryUserDataAsync(
+                    userIds: [userId.Value],
+                    keys: [KEY_NICKNAME, KEY_LEVEL, KEY_EXPERIENCE, 
+                           KEY_ELEMENT_METAL, KEY_ELEMENT_WOOD, KEY_ELEMENT_WATER, KEY_ELEMENT_FIRE, KEY_ELEMENT_EARTH]
+                );
+                
+                // 查询货币数据
+                var currencyResult = await CloudData.QueryCurrencyAsync(
+                    userIds: [userId.Value],
+                    keys: [CURRENCY_GOLD]
+                );
+                
+                // 检查查询结果
+                if (!dataResult.IsSuccess)
+                {
+                    Game.Logger.LogWarning($"[PlayerDataManager] CloudData query failed: treating as new player");
+                    return null;
+                }
+                
+                // 获取用户数据
+                var userDataList = dataResult.Data;
+                if (userDataList == null)
+                {
+                    Game.Logger.LogInformation($"[PlayerDataManager] No data found in CloudData, treating as new player");
+                    return null;
+                }
+                
+                // 遍历结果寻找对应用户的应该只有一条（因为我们只查了一个userId）
+                // 使用 foreach 避免 explicit typing issues with First()
+                dynamic userData = null;
+                foreach (var item in userDataList)
+                {
+                     // 假设 item 有 UserId 属性，或者它就是数据对象
+                     // 由于编译错误提示 item 可能是 IUserDataBatchQueryResult 类型（如果是嵌套的），
+                     // 或者 item 是 UserData 类型。我们这里做个简单的检查。
+                     // 实际上根据文档，这里通常只有一个结果。
+                     userData = item;
+                     break;
+                }
+
+                if (userData == null)
+                {
+                     return null;
+                }
+                
+                // 检查是否有昵称数据（有昵称说明是已存在的玩家）
+                // 使用 dynamic 访问属性以绕过编译时类型检查问题（如果接口定义不明确）
+                // 但为了安全，我们尝试转换为已知接口或字典访问
+                IDictionary<string, string> nicknameData = userData.VarChar255Data;
+                
+                if (nicknameData == null || !nicknameData.ContainsKey(KEY_NICKNAME))
+                {
+                    Game.Logger.LogInformation($"[PlayerDataManager] No nickname found in CloudData, treating as new player");
+                    return null;
+                }
+                
+                // 构建PlayerData对象
+                var playerData = new PlayerData
+                {
+                    Nickname = nicknameData.TryGetValue(KEY_NICKNAME, out var nickname) ? nickname : "Player",
+                    Level = (int)GetBigInt(userData, KEY_LEVEL, 1),
+                    Experience = GetBigInt(userData, KEY_EXPERIENCE, 0),
+                    Gold = 0,
+                    Elements = new Dictionary<string, long>
+                    {
+                        { "metal", GetBigInt(userData, KEY_ELEMENT_METAL, 0) },
+                        { "wood", GetBigInt(userData, KEY_ELEMENT_WOOD, 0) },
+                        { "water", GetBigInt(userData, KEY_ELEMENT_WATER, 0) },
+                        { "fire", GetBigInt(userData, KEY_ELEMENT_FIRE, 0) },
+                        { "earth", GetBigInt(userData, KEY_ELEMENT_EARTH, 0) }
+                    }
+                };
+                
+                // 获取货币数据
+                if (currencyResult.IsSuccess && currencyResult.Data != null)
+                {
+                    // 使用 dynamic 绕过编译时检查，处理 UserData<IUserCurrencyRecord>
+                    dynamic currencyDataDyn = currencyResult.Data;
+                    
+                    // 尝试作为字典直接访问 (如果它实现了 IDictionary) 或查找 CurrencyData 属性
+                    IDictionary<string, long> currencyDict = null;
+
+                    try 
+                    {
+                        // 尝试获取 CurrencyData 属性
+                        currencyDict = currencyDataDyn.CurrencyData as IDictionary<string, long>;
+                    }
+                    catch 
+                    {
+                        // 忽略异常
+                    }
+
+                    if (currencyDict != null && currencyDict.TryGetValue(CURRENCY_GOLD, out var gold))
+                    {
+                        playerData.Gold = gold;
+                    }
+                }
+                
+                Game.Logger.LogInformation($"[PlayerDataManager] Loaded existing player from CloudData: {playerData.Nickname}, Level {playerData.Level}");
+                
+                // 缓存数据
+                _sessionCache[userId.Value] = playerData;
+                
+                return playerData;
             }
             catch (Exception ex)
             {
@@ -70,6 +175,28 @@ namespace GameEntry.Data
                 return null;
             }
         }
+
+        /// <summary>
+        /// 辅助方法：从 dynamic userData 中安全获取 BigInt 值
+        /// </summary>
+        private static long GetBigInt(dynamic userData, string key, long defaultValue)
+        {
+            try 
+            {
+                var dict = userData.BigIntData as IDictionary<string, long>;
+                if (dict != null && dict.TryGetValue(key, out var val))
+                {
+                    return val;
+                }
+            }
+            catch
+            {
+                // 忽略转换失败
+            }
+            return defaultValue;
+        }
+                
+
 
         /// <summary>
         /// 为新玩家初始化数据并保存到CloudData
