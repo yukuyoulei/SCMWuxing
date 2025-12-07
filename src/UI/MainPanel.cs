@@ -5,8 +5,13 @@ using GameUI.DesignSystem;
 using GameUI.Control.Primitive;
 using GameUI.Struct;
 using GameEntry.Data;
+using GameEntry.Network;
 using System;
 using System.Drawing;
+using System.Text;
+using System.Threading.Tasks;
+using System.Text.Json;
+using System.Collections.Generic;
 
 namespace GameEntry.Client
 {
@@ -27,8 +32,99 @@ namespace GameEntry.Client
         {
             _playerData = playerData;
             
+            // 注册服务器消息监听
+            RegisterServerMessageListener();
+            
             // 构建UI
             BuildUI();
+        }
+        
+        /// <summary>
+        /// 注册服务器消息监听器
+        /// </summary>
+        private void RegisterServerMessageListener()
+        {
+            try
+            {
+                var trigger = new Trigger<EventServerMessage>(OnServerMessageReceived, keepReference: true);
+                trigger.Register(Game.Instance);
+                Game.Logger.LogInformation("[Client] MainPanel registered for server messages");
+            }
+            catch (Exception ex)
+            {
+                Game.Logger.LogError(ex, "[Client] Failed to register MainPanel server message listener");
+            }
+        }
+        
+        /// <summary>
+        /// 处理服务器消息
+        /// </summary>
+        private Task<bool> OnServerMessageReceived(object sender, EventServerMessage eventArgs)
+        {
+            try
+            {
+                var json = Encoding.UTF8.GetString(eventArgs.Message);
+                var messageData = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+                
+                if (messageData != null && messageData.TryGetValue("type", out var typeObj))
+                {
+                    var messageType = typeObj.ToString();
+                    
+                    if (messageType == "gm_command_response")
+                    {
+                        Game.Logger.LogInformation($"[Client] MainPanel received GM response: {json}");
+                        ProcessGMResponse(json);
+                    }
+                }
+                
+                return Task.FromResult(true);
+            }
+            catch (Exception ex)
+            {
+                Game.Logger.LogError(ex, "[Client] Error processing server message in MainPanel");
+                return Task.FromResult(false);
+            }
+        }
+        
+        /// <summary>
+        /// 处理GM命令响应
+        /// </summary>
+        private void ProcessGMResponse(string json)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                
+                bool success = root.TryGetProperty("success", out var successProp) && successProp.GetBoolean();
+                string command = root.TryGetProperty("command", out var cmdProp) ? cmdProp.GetString() ?? "" : "";
+                string message = root.TryGetProperty("message", out var msgProp) ? msgProp.GetString() ?? "" : "";
+                
+                Game.Logger.LogInformation($"[Client] GM Response: {command} - {message} (success={success})");
+                
+                if (success && command == "level_up" && root.TryGetProperty("data", out var dataProp))
+                {
+                    // 更新等级显示
+                    if (dataProp.TryGetProperty("level", out var levelProp))
+                    {
+                        int newLevel = levelProp.GetInt32();
+                        UpdateLevel(newLevel);
+                        Game.Logger.LogInformation($"[Client] Updated level display to {newLevel}");
+                    }
+                    
+                    // 更新金币显示
+                    if (dataProp.TryGetProperty("gold", out var goldProp))
+                    {
+                        long newGold = goldProp.GetInt64();
+                        UpdateCurrency(newGold);
+                        Game.Logger.LogInformation($"[Client] Updated gold display to {newGold}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Game.Logger.LogError(ex, "[Client] Error processing GM response");
+            }
         }
 
         private void BuildUI()
